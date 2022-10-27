@@ -1,9 +1,15 @@
+#!/usr/bin/env bash
+# Installs HAProxy version 1.8 with the following configurations:
+#+    Enables management via the init script.
+#+    Distributes requests using a round-robin algorithm.
+
 global
     log     /dev/log local0
     maxconn 2048
     user    haproxy
     group   haproxy
     tune.ssl.default-dh-param 2048
+
 
 defaults
     log     global
@@ -18,23 +24,35 @@ defaults
     option  forwardfor
     option  http-server-close
 
+listen 41185-lb-01
+        bind *:80
+        mode http
+        balance roundrobin
+        option httpclose
+        option forwardfor
+        server 41185-web-02 54.237.58.228:80 check
+        server 41185-web-01 54.89.53.150:80 check
+
+listen appname 0.0.0.0:80
+        mode http
+        balance roundrobin
+        option httpclose
+        option forwardfor
+        server 41185-web-02 54.237.58.228:80 check
+        server 41185-web-01 54.89.53.150:80 check
 frontend www-http
-    bind   0.0.0.0:80
-    reqadd X-Forwarded-Proto:\ http
+    bind *:80
+    http-request add-header X-Served-By http
     default_backend www-backend
 
 frontend www-https
-    bind   0.0.0.0:443 ssl crt /etc/letsencrypt/live/www.twinner.tech/fullchain.pem
-    reqadd X-Forwarded-Proto:\ https
-    acl    letsencrypt-acl path_beg /.well-known/acme-challenge/
-    use_backend letsencrypt-backend if letsencrypt-acl
-    default_backend www-backend
+    bind *:443 ssl crt /etc/ssl/certs/www.twinner.tech.pem
+    http-request add-header X-Served-By https
+    default_backend web-servers
 
-backend www-backend
+backend web-servers
     balance  roundrobin
     redirect scheme https if !{ ssl_fc }
     server 41185-web-01 54.89.53.150:80 check
     server 41185-web-02 54.237.58.228:80 check
-
-backend letsencrypt-backend
-    server letsencrypt 127.0.0.1:54321
+    option httpchk
