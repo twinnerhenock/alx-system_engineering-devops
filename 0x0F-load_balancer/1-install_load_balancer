@@ -1,42 +1,19 @@
 #!/usr/bin/env bash
-# Installs HAProxy version 1.8 with the following configurations:
-#+    Enables management via the init script.
-#+    Distributes requests using a round-robin algorithm.
-
-apt-get install -y software-properties-common
-add-apt-repository -y ppa:vbernat/haproxy-1.8
-apt-get update
-apt-get install -y haproxy=1.8.\*
-
-sed -i '/#EXTRAOPTS="-de -m 16"/a ENABLED=1' /etc/default/haproxy
-mv /etc/haproxy/haproxy.cfg{,.original}
-touch /etc/haproxy/haproxy.cfg
-
-printf %s "global
-    log 127.0.0.1 local0 notice
-    maxconn 2000
-    user haproxy
-    group haproxy
-defaults
-    log     global
-    mode    http
-    option  httplog
-    option  dontlognull
-    retries 3
-    option redispatch
-    timeout connect  5000
-    timeout client  10000
-    timeout server  10000
-listen hbnb
-    bind *:80
-    mode http
-    stats enable
-    stats uri /haproxy?stats
-    balance roundrobin
-    option httpchk
-    option forwardfor
-    server 41185-web-01 54.89.53.150:80 check
-    server 41185-web-02 54.237.58.228:80 check
-" >> /etc/haproxy/haproxy.cfg
-
-service haproxy start
+# Configures a brand new Ubuntu server (16.04 LTS) with 
+# HAProxy version 2.0-stable (LTS)
+# apt-get -y install --no-install-recommends software-properties-common
+# add-apt-repository -y ppa:vbernat/haproxy-2.0
+# apt-get -y install haproxy=2.0.\*
+apt-get -y install haproxy
+{
+echo -e "\nfrontend http"
+echo "	bind *:80"
+echo "	mode http"
+echo "	default_backend serve"
+echo -e "\nbackend serve"
+echo "	balance roundrobin"
+echo "	server 41185-web-01 54.89.53.150:80 check"
+echo "	server 41185-web-02 54.237.58.228:80 check"
+} >> /etc/haproxy/haproxy.cfg
+echo "ENABLED=1">>/etc/default/haproxy
+service haproxy restart
