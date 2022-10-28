@@ -1,58 +1,38 @@
-#!/usr/bin/env bash
-# Installs HAProxy version 1.8 with the following configurations:
-#+    Enables management via the init script.
-#+    Distributes requests using a round-robin algorithm.
-
 global
-    log     /dev/log local0
-    maxconn 2048
-    user    haproxy
-    group   haproxy
-    tune.ssl.default-dh-param 2048
-
-
+        log /dev/log    local0
+        log /dev/log    local1 notice
+        chroot /var/lib/haproxy
+        stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+        stats timeout 30s
+        user haproxy
+        group haproxy
+        daemon
 defaults
-    log     global
-    mode    http
-    option  httplog
-    option  dontlognull
-    retries 3
-    option  redispatch
-    timeout connect  5000
-    timeout client  10000
-    timeout server  10000
-    option  forwardfor
-    option  http-server-close
-
-listen 41185-lb-01
+        log     global
+        mode    http
+        option  httplog
+        option  dontlognull
+        timeout connect  5000
+        timeout client  10000
+        timeout server  10000
+        errorfile 400 /etc/haproxy/errors/400.http
+        errorfile 403 /etc/haproxy/errors/403.http
+        errorfile 408 /etc/haproxy/errors/408.http
+        errorfile 500 /etc/haproxy/errors/500.http
+        errorfile 502 /etc/haproxy/errors/502.http
+        errorfile 503 /etc/haproxy/errors/503.http
+        errorfile 504 /etc/haproxy/errors/504.http
+frontend front_http
         bind *:80
-        mode http
-        balance roundrobin
-        option httpclose
-        option forwardfor
-        server 41185-web-02 54.237.58.228:80 check
+        default_backend back_http
+frontend front_https
+        bind 0.0.0.0:443 ssl crt /etc/letsencrypt/live/www.twinner.tech/fullchain.pem
+        acl    letsencrypt-acl path_beg /.well-known/acme-challenge/
+        use_backend letsencrypt-backend if letsencrypt-acl
+        default_backend back_http
+backend back_http
+        balance  roundrobin
         server 41185-web-01 54.89.53.150:80 check
-
-listen appname 0.0.0.0:80
-        mode http
-        balance roundrobin
-        option httpclose
-        option forwardfor
         server 41185-web-02 54.237.58.228:80 check
-        server 41185-web-01 54.89.53.150:80 check
-frontend www-http
-    bind *:80
-    http-request add-header X-Served-By http
-    default_backend www-backend
 
-frontend www-https
-    bind *:443 ssl crt /etc/ssl/certs/www.twinner.tech.pem
-    http-request add-header X-Served-By https
-    default_backend web-servers
-
-backend web-servers
-    balance  roundrobin
-    redirect scheme https if !{ ssl_fc }
-    server 41185-web-01 54.89.53.150:80 check
-    server 41185-web-02 54.237.58.228:80 check
-    option httpchk
+backend letsencrypt-backend
