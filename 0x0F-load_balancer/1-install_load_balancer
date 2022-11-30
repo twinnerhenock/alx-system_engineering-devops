@@ -4,7 +4,7 @@
 # apt-get -y install --no-install-recommends software-properties-common
 # add-apt-repository -y ppa:vbernat/haproxy-2.0
 # apt-get -y install haproxy=2.0.\*
-apt-get -y install haproxy
+sudo apt-get -y install haproxy
 {
 echo -e "\nfrontend http"
 echo "	bind *:80"
@@ -15,5 +15,5 @@ echo "	balance roundrobin"
 echo "	server 41185-web-01 54.89.53.150:80 check"
 echo "	server 41185-web-02 54.237.58.228:80 check"
 } >> /etc/haproxy/haproxy.cfg
-echo "ENABLED=1">>/etc/default/haproxy
-service haproxy restart
+sudo echo "ENABLED=1">>/etc/default/haproxy
+sudo service haproxy restart
